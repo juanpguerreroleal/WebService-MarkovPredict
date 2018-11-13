@@ -1,10 +1,9 @@
 from flask_restful import Resource
-from flask import request, send_file, jsonify
+from flask import request, send_file
 import json
 import matplotlib.pyplot as plt
-import random
 
-
+#Funcion para generar las matrices de transicion en los pasos n
 def getMat(matriz1, matriz2):
     matrizResul = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]]
     suma=0
@@ -15,7 +14,7 @@ def getMat(matriz1, matriz2):
             matrizResul[i][j]=suma
             suma=0
     return matrizResul
-
+#Funcion para multiplicar la matriz de transicion respectiva con el vector de probabilidades del paso anterior
 def mult(matriz1, matriz2):
     matrizResul = [0.0,0.0,0.0]
     suma=0
@@ -25,26 +24,31 @@ def mult(matriz1, matriz2):
         matrizResul[j]=suma
         suma=0
     return matrizResul
-
+#Evaluacion de las probabilidades para devolver la probabilidad mas alta de la situacion economica
 def evaluar(prob):
     if prob[0] > prob[2] and prob[0] > prob[1]:
         est = "C"
     elif prob[2] > prob[0] and prob[2] > prob[1]:
         est = "D"
+    elif prob[2] == prob[0] and prob[2] > prob[1]:
+        est = "CD"
     else:
         est = "I"
     return est
-
+#Clase principal del servicio
 class Service(Resource):
     def post(self):
         json_data = request.get_json(force=True)
+        #Si no se recibe el objeto json con los datos retorna un mensaje de error
         if not json_data:
             return {'message': 'No se enviaron datos'}
+        #Se almacenan los datos del json en un dict
         res2 = json.loads(json_data)
-        print(res2['data'][0]["year"])
         datos = res2['data']
+        #Se declaran los Arrays donde se almacenaran los datos
         years = [0 for i in range(len(datos))]
         pibs = [0 for i in range(len(datos))]
+        #Se asignan los valores en los arrays
         for year in range(len(datos)):
             years[year] = datos[year]["year"]
             pibs[year] = int(datos[year]["pib"])
@@ -53,9 +57,9 @@ class Service(Resource):
         ax.plot(years, pibs)
         ax.set(xlabel='year', ylabel='PIB', title='La situacion economica a traves del tiempo')
         ax.grid()
-        name = "i" + str(random.randint(10000,99999))
         fig.savefig("fig.png")
-        ##Proceso
+        ##Inicia el proceso
+        #Declaraciones necesarias
         estados=[0,0,0]
         actividad = []
         evalu = ["","","","","","",""]
@@ -76,7 +80,8 @@ class Service(Resource):
         matrizT4 = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]]
         matrizT5 = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]]
         matrizT6 = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]]
-        totalYears = len(years)
+        #Proceso de evaluacion del año n+1 con el año n
+        #Se define si hubo un Crecimiento, Igualdad o Decrecimiento
         for i in range(len(years)-1):
             if(pibs[i+1] > pibs[i]):
                 estados[0] += 1
@@ -87,6 +92,7 @@ class Service(Resource):
             else:
                 estados[2] += 1
                 actividad.append("D")
+        #Se empiezan a sumar en los contadores las transiciones entre los años
         for i in range(len(actividad)-1):
             if(actividad[i] == "C" and actividad[i+1] == "C"):
                 CaC+=1
@@ -117,18 +123,23 @@ class Service(Resource):
                 transiciones[8] +=1
             else:
                 print("Error")
-        #Generando matriz de transicion
+        #Generando matriz de transicion de un paso
         for i in range(3):
             for j in range(3):
                 suma = transiciones[cont+i] + transiciones[cont+i+1] + transiciones[cont+i+2]
                 if( suma != 0 ):
                     matrizT[i][j] = transiciones[j+cont+i] / (transiciones[cont+i] + transiciones[cont+i+1] + transiciones[cont+i+2])
             cont+=2
-        #Generando las siguientes matrices
+        #Generando las siguientes matrices de transicion
+        #Año 2
         matrizT2 = getMat(matrizT, matrizT)
+        #Año 3
         matrizT3 = getMat(matrizT, matrizT2)
+        #Año 4
         matrizT4 = getMat(matrizT, matrizT3)
+        #Año 5
         matrizT5 = getMat(matrizT, matrizT4)
+        #Año 6 
         matrizT6 = getMat(matrizT, matrizT5)
         #Obteniendo las probabilidades para el siguiente sexenio
         #n=1
@@ -141,14 +152,12 @@ class Service(Resource):
         probs[4] = mult(probs[3], matrizT4)
         probs[5] = mult(probs[4], matrizT5)
         probs[6] = mult(probs[5], matrizT6)
-        print(actividad)
         for i in range(7):
-            print("Para el numero "+str(i+1)+" se espera: ")
             evalu[i] = evaluar(probs[i])
-            print(evalu[i])
-            print("\n")
-        resp = '{ "predicciones": '+ json.dumps(evalu) + '}'
+        resp = '{ "predicciones": ' + json.dumps(evalu) + '}'
+        #resp = '{"predicciones": ' + json.dumps(evalu) + ',' + '"probabilidades": ' + json.dumps(probs) + '}'
         print(resp)
+        print(probs)
         ##Retorno de Datos
         return resp,201
 class Service2(Resource):
