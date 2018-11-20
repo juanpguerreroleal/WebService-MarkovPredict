@@ -2,7 +2,7 @@ from flask_restful import Resource
 from flask import request, send_file
 import json
 import matplotlib.pyplot as plt
-
+import random
 #Funcion para generar las matrices de transicion en los pasos n
 def getMat(matriz1, matriz2):
     matrizResul = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]]
@@ -57,7 +57,9 @@ class Service(Resource):
         ax.plot(years, pibs)
         ax.set(xlabel='year', ylabel='PIB', title='La situacion economica a traves del tiempo')
         ax.grid()
-        fig.savefig("fig.png")
+        nombre = "id"+str(random.randrange(0,999999999)) + ".png"
+        fig.savefig(nombre)
+        url = "https://127.0.0.1/" + nombre
         ##Inicia el proceso
         #Declaraciones necesarias
         estados=[0,0,0]
@@ -154,8 +156,8 @@ class Service(Resource):
         probs[6] = mult(probs[5], matrizT6)
         for i in range(7):
             evalu[i] = evaluar(probs[i])
-        resp = '{ "predicciones": ' + json.dumps(evalu) + '}'
-        #resp = '{"predicciones": ' + json.dumps(evalu) + ',' + '"probabilidades": ' + json.dumps(probs) + '}'
+        #resp = '{ "predicciones": ' + json.dumps(evalu) + '}'
+        resp = '{"datos":{"predicciones": ' + json.dumps(evalu) + ',' + '"probabilidades": ' + json.dumps(probs) + ','+ '"imagen": ' + '"' + url + '"' '}}'
         print(resp)
         print(probs)
         ##Retorno de Datos
